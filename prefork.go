@@ -1,6 +1,8 @@
 package emissary
 
-import "time"
+import (
+	"time"
+)
 
 type PreforkPool struct {
 	defaultDispatcher
@@ -21,17 +23,20 @@ func (p *PreforkPool) init(buffer, max int, timeout time.Duration) {
 }
 
 func (p *PreforkPool) start() {
+	go p.ticker()
+	for ch := range p.workerQ {
+		task := <-p.tasks
+		ch <- task
+	}
+}
+
+func (p *PreforkPool) ticker() {
 	tt := p.timeout / time.Duration(p.max)
 	timer := time.Tick(tt)
-	for {
-		select {
-		case ch := <-p.workerQ:
-			task := <-p.tasks
-			ch <- task
-		case <-timer:
-			if len(p.workerQ) < p.max {
-				p.fork()
-			}
+
+	for t := range timer {
+		if len(p.workerQ) < p.max && !t.IsZero() {
+			p.fork()
 		}
 	}
 }
