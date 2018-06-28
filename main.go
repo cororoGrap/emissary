@@ -1,37 +1,19 @@
 package emissary
 
-type Dispatcher interface {
-	dispatch(t Task)
-	start()
-	DoAndWait(fn func())
-}
+import (
+	"time"
+)
 
-type Task interface {
-	Do()
-	done()
-	waitForResult()
-}
-
-type SimpleTask struct {
-	fn func()
-	re chan int
-}
-
-func (t *SimpleTask) Do() {
-	t.fn()
-}
-
-func (t *SimpleTask) done() {
-	t.re <- 1
-}
-
-func (t *SimpleTask) waitForResult() {
-	<-t.re
-}
-
-func NewSerial(buffer int) Dispatcher {
-	d := &SerialDispatcher{}
+func NewSerial(buffer int) dispatcher {
+	d := &defaultDispatcher{}
 	d.init(buffer)
+	go d.start()
+	return d
+}
+
+func NewPrefork(buffer, max int, timeout time.Duration) dispatcher {
+	d := &PreforkPool{}
+	d.init(buffer, max, timeout)
 	go d.start()
 	return d
 }
